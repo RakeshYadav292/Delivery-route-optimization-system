@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Delivery Route Optimization System — compute efficient routes using A*." />
+    <title>RouteOptimizer — Delivery Route Optimization System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <script>
+        if (!localStorage.getItem('isAuthenticated')) {
+            window.location.href = '/login';
+        }
+    </script>
+
+    <!-- Navigation Header -->
+    <nav class="navbar" id="navbar">
+        <div class="navbar-brand"><span class="icon">🚚</span> RouteOptimizer</div>
+        <ul class="navbar-links">
+            <li><a href="#optimizeForm">Optimize</a></li>
+            <li><a href="#historySection">History</a></li>
+            <li><a href="#" id="btnLogout" style="color: var(--danger); font-weight: bold;">Logout</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero" id="hero">
+        <span class="hero-badge">⚡ A* Powered Optimizer</span>
+        <h1>Delivery Route<br />Optimization System</h1>
+        <p>Optimize multi-stop routing schedules instantly. Visualize paths and evaluate payload capacities on our command console.</p>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="container">
+        <!-- Configuration Form View -->
+        <div id="inputView">
+            <div class="card" id="inputCard">
+                <div class="section-title"><span class="dot"></span> Configure Route</div>
+                <form id="optimizeForm" autocomplete="off">
+                    <div class="form-group">
+                        <label class="form-label" for="source">Source Location</label>
+                        <select class="form-control" id="source" required>
+                            <option value="">Loading locations…</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="destination">Destination Location</label>
+                        <select class="form-control" id="destination" required>
+                            <option value="">Loading locations…</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Delivery Points (Stops)</label>
+                        <div id="deliveryPointsList" class="delivery-points-wrapper"></div>
+                        <button type="button" class="btn-add-point" id="btnAddPoint">+ Add Delivery Point</button>
+                    </div>
+
+                    <div class="inline-group">
+                        <div class="form-group">
+                            <label class="form-label" for="deliveryLoad">Delivery Load (kg)</label>
+                            <input class="form-control" type="number" id="deliveryLoad" value="120" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="vehicleCapacity">Vehicle Capacity (kg)</label>
+                            <input class="form-control" type="number" id="vehicleCapacity" value="200" />
+                        </div>
+                    </div>
+
+                    <div class="error-message" id="errorMessage"></div>
+                    <button type="submit" class="btn-primary" id="btnSubmit">
+                        🚀 Optimize Route
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Optimization Results View -->
+        <div id="resultsView" style="display:none;">
+            <div class="card results-panel" id="resultsPanel">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; flex-wrap: wrap; gap: 10px;">
+                    <div class="section-title" style="margin-bottom:0;"><span class="dot"></span> Optimization Results</div>
+                    <button class="btn-add-point" id="btnBackToInput" style="margin-top:0;">← Edit Config</button>
+                </div>
+
+                <!-- Metrics Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card accent">
+                        <div class="stat-value" id="statDistance">—</div>
+                        <div class="stat-label">Optimized Distance</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-value" id="statUnoptDistance">—</div>
+                        <div class="stat-label">Original Distance</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statETA">—</div>
+                        <div class="stat-label">Travel Time</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-value" id="statCapacity">—</div>
+                        <div class="stat-label">Load Capacity</div>
+                    </div>
+                </div>
+
+                <!-- Google Map Visualization -->
+                <div class="map-container">
+                    <div class="map-tabs">
+                        <button id="btnUnoptimizedMap" class="map-tab-btn">Before Optimization</button>
+                        <button id="btnOptimizedMap" class="map-tab-btn active">After Optimization</button>
+                    </div>
+                    <div id="googleMap"></div>
+                </div>
+
+                <!-- Calculated Sequence Node Path -->
+                <div class="route-path">
+                    <h4>Optimized Stop Sequence</h4>
+                    <div class="route-nodes" id="routeNodes"></div>
+                </div>
+
+                <!-- Live GPS Tracking Console Activation -->
+                <button id="btnStartTracking" class="btn-primary" style="margin-top: 1.5rem; background: var(--gradient-hero);">
+                    📡 Start Live GPS Tracking Simulation
+                </button>
+
+                <!-- Live GPS Tracking Console Panel -->
+                <div class="card" id="trackingPanel" style="display: none; margin-top: 1.5rem; border-color: var(--accent-cyan); background: rgba(12, 16, 31, 0.9);">
+                    <div class="section-title">
+                        <span class="dot" style="background: var(--accent-cyan); box-shadow: 0 0 10px var(--accent-cyan);"></span>
+                        Live GPS Tracking Console
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card accent">
+                            <div class="stat-value" id="gpsCoords" style="font-size: 1.4rem;">0.00000, 0.00000</div>
+                            <div class="stat-label">Current Lat/Lng</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="gpsSpeed">0 km/h</div>
+                            <div class="stat-label">Simulated Speed</div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="stat-value" id="gpsNextStop" style="font-size: 1.1rem; padding-top: 6px;">—</div>
+                            <div class="stat-label">Heading To</div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-value" id="gpsETA">0m 0s</div>
+                            <div class="stat-label">Stop ETA</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 0.5rem; font-size: 0.85rem;">
+                            <span style="color:var(--text-secondary)">Delivery Progress</span>
+                            <span id="gpsProgressText" style="color:var(--accent-cyan); font-weight:700">0%</span>
+                        </div>
+                        <div style="width:100%; height:8px; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden;">
+                            <div id="gpsProgressBar" style="width:0%; height:100%; background:linear-gradient(90deg, var(--brand-primary), var(--accent-cyan)); transition: width 0.1s linear;"></div>
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; gap:10px;">
+                        <button id="btnPauseTracking" class="btn-add-point" style="flex:1; margin-top:0; justify-content:center;">⏸️ Pause</button>
+                        <button id="btnStopTracking" class="btn-remove-point" style="flex:1; height:auto; width:auto; border-radius:var(--radius-sm); font-size:0.9rem; font-weight:700; padding:12px 20px;">⏹️ Terminate</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Records Section -->
+        <section class="history-section" id="historySection">
+            <div class="card">
+                <div class="section-title"><span class="dot"></span> Route History Log</div>
+                <div class="history-table-wrapper">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Source</th>
+                                <th>Destination</th>
+                                <th>Route Sequence</th>
+                                <th>Comparison</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Interactive Optimization Progress Loader Modal Overlay -->
+    <div id="loaderOverlay" class="loader-overlay" style="display: none;">
+        <div class="loader-card">
+            <div class="loader-spinner-container">
+                <div class="loader-dual-ring"></div>
+                <span class="loader-icon">🧠</span>
+            </div>
+            <h3>Optimizing Delivery Routes</h3>
+            <p>Running A* and TSP solvers on Hyderabad road network...</p>
+            <div class="loader-steps">
+                <div class="loader-step" id="step1">
+                    <span class="step-bullet">1</span>
+                    <span class="step-text">Fetching coordinates & location data</span>
+                </div>
+                <div class="loader-step" id="step2">
+                    <span class="step-bullet">2</span>
+                    <span class="step-text">Executing A* shortest path searches</span>
+                </div>
+                <div class="loader-step" id="step3">
+                    <span class="step-bullet">3</span>
+                    <span class="step-text">Solving Traveling Salesperson routes</span>
+                </div>
+                <div class="loader-step" id="step4">
+                    <span class="step-bullet">4</span>
+                    <span class="step-text">Building interactive Map visualization</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Copyright -->
+    <footer class="footer" id="footer">
+        <p>Delivery Route Optimization System — B.Tech Mini Project</p>
+    </footer>
+
+    <!-- Google Maps script with error fallback -->
+    <script>
+        function googleMapsError() {
+            const mapDiv = document.getElementById('googleMap');
+            if (mapDiv) {
+                mapDiv.innerHTML = `
+                    <div class="map-error">
+                        <h3>Map Interface Unavailable</h3>
+                        <p>A Google Maps API Key is required to render interactive map paths.</p>
+                        <p>The backend calculations have succeeded, but map plotting is currently disabled.</p>
+                    </div>
+                `;
+                mapDiv.style.background = "#070a13";
+                mapDiv.style.display = "flex";
+                mapDiv.style.alignItems = "center";
+                mapDiv.style.justifyContent = "center";
+                mapDiv.style.padding = "2rem";
+            }
+        }
+    </script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?callback=initMap" onerror="googleMapsError()"></script>
+</body>
+</html>
