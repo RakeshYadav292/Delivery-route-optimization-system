@@ -2,7 +2,7 @@
 
 A complete, professional, full-stack web application designed for logistics companies to optimize their delivery routes. The system calculates the most efficient path visiting multiple locations, minimizing distance and validating vehicle capacity constraints.
 
-This project is built as a robust academic submission (suitable for B.Tech CSE students) emphasizing modern UI/UX and algorithmic implementation.
+This project is built as a robust academic submission (suitable for B.Tech CSBS students) emphasizing modern UI/UX and algorithmic implementation.
 
 ## ✨ Features
 
